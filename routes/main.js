@@ -1,601 +1,319 @@
 var express=require("express");
 var router=express.Router({mergeParams: true});
-var activity=require("../models/activities");
-var exercise=require("../models/exercise");
-const date = require('date-and-time');
-var mongoose=require("mongoose");
-var User = require("../models/user");
-const unirest = require("unirest");
-const timer= require('timer-node');
+const dataset= require('../public/myData.json');
 var passport=require("passport");
 
-var fs = require('fs'); 
-var path = require('path'); 
-var multer = require('multer'); 
-const options = require('dotenv/lib/env-options');
-const { all } = require(".");
-const { isNull } = require("util");
-const { timeStamp } = require("console");
-const { Int32 } = require("mongodb");
-require('dotenv/config'); 
 
-var storage = multer.diskStorage({ 
-    destination: (req, file, cb) => { 
-        cb(null, 'uploads') ;
-    }, 
-    filename: (req, file, cb) => { 
-        cb(null, file.fieldname + '-' + Date.now() + path.extname(file.originalname)) ;
-    } 
-}); 
+////////////////////////////////////////////////about yps
+router.get("/yps_foundation",function(req,res){
+    const images=dataset[0].images;
+    const data=dataset[0].data;
+    const heading=dataset[0].heading;
+    const subtopics=dataset[0].subtopics;
+    res.render("mySchool/myTemplate",{images:images,data:data,heading:heading,subtopics:subtopics});
+});
 
-var upload = multer({ storage: storage }); 
-
-
-var nodemailer = require('nodemailer');
-
-var transporter = nodemailer.createTransport({
-  service: 'gmail',
-  auth: {
-    user: process.env.MY_MAIL,
-    pass: process.env.PASS
-  }
+router.get("/our_founder",function(req,res){
+    const images=dataset[1].images;
+    const data=dataset[1].data;
+    const heading=dataset[1].heading;
+    const subtopics=dataset[1].subtopics;
+    res.render("mySchool/myTemplate",{images:images,data:data,heading:heading,subtopics:subtopics});
 });
 
 
-const checksum_lib=require("../paytm/checksum/checksum");
-
-
-router.get("/premium/payment",function(req,res){
-    let params={}
-    // params['MID']='PafhkC08108295167919',
-    params['MID']='wErUkK40798264521525',//testing
-    params['WEBSITE']='DEFAULT',
-    params['CHANNEL_ID']='WEB',
-    params['INDUSTRY_TYPE_ID']='Retail',
-    params['ORDER_ID']="Merchant"+Math.random().toString(36).substring(2,15),
-    params['CUST_ID']=String(req.user.username)+Math.random().toString(36).substring(2,15),
-    params['TXN_AMOUNT']='1',
-    params['CALLBACK_URL']='http://localhost:3001/premium/status/',//testing
-    // params['CALLBACK_URL']='https://avinashjindal2510.herokuapp.com/campgrounds/' + req.params.id +'/status/' + params['ORDER_ID'],
-    params['EMAIL']='ajindal_be18@thapar.edu',
-    params['MOBILE_NO']='9050995986'
-
-    // checksum_lib.genchecksum(params,'_IFq1ytY9gWQ&8jZ',function(err,checksum){
-        checksum_lib.genchecksum(params,'RyS29!4Q65GYcgN_',function(err,checksum){ //testing
-        // let txn_url="https://securegw.paytm.in/order/process" //testing
-        let txn_url="https://securegw-stage.paytm.in/order/process"
-        let form_fields=""
-
-        for(x in params)
-        {
-            form_fields += "<input type='hidden' name='"+x+"' value='"+params[x]+"'/>"
-        }
-
-        form_fields += "<input type='hidden' name='CHECKSUMHASH' value='"+checksum+"'/>"
-
-        var html='<html><body><center><h1>Please wait! Do not refresh the page</h1></center><form method="post" action="'+txn_url+'" name="f1">'+form_fields +'</form><script type="text/javascript">document.f1.submit()</script></body></html>'
-        res.writeHead(200,{'Content-Type': 'text/html'})
-        res.write(html)
-
-    })
+router.get("/board_members",function(req,res){
+    const images=dataset[2].images;
+    const data=dataset[2].data;
+    const heading=dataset[2].heading;
+    const subtopics=dataset[2].subtopics;
+    res.render("mySchool/myTemplate",{images:images,data:data,heading:heading,subtopics:subtopics});
 });
 
-////////////////////////////////////////
-
-router.post("/premium/status/" ,function(req,res){
-    User.findOne({id:req.user.id},(err,founduser)=>{
-        if(err){
-            req.flash("error", err);
-            res.redirect("/exercise");
-        }
-        if(!founduser){
-            res.redirect("/exercise");
-        }
-        else{
-            
-            founduser.txn_id=req.body.TXNID;
-            if(req.body.STATUS=="TXN_SUCCESS"){
-                founduser.premium=true;   
-            }else{
-                founduser.premium=false;
-            }
-            founduser.save();
-            var mailOptions = {
-                from: 'ajindal_be18@thapar.edu',
-                to: req.user.emails[0].value,
-                subject: 'Payment Confirmation',
-                html: `<h1>Hi!!! ${founduser.name}</h1>
-                <p>We have received your payment.</p>
-                <h4 class="text-center">Your receipt is:</h4>
-                    <table border="1PX" align="center">
-                        <tr>
-                            <td>CURRENCY</td>
-                            <td>${req.body.CURRENCY}</td>
-                        </tr>
-                        <tr>
-                            <td>GATEWAYNAME</td>
-                            <td>${req.body.GATEWAYNAME}</td>
-                        </tr>
-                        <tr>
-                            <td>RESPONSE MESSAGE</td>
-                            <td>${req.body.RESPMSG}</td>
-                        </tr>
-                        <tr>
-                            <td>BANKNAME</td>
-                            <td>${req.body.BANKNAME}</td>
-                        </tr>
-                        <tr>
-                            <td>MERCHANT ID</td>
-                            <td>${req.body.MID}</td>
-                        </tr>
-                        <tr>
-                            <td>RESPONSE CODE</td>
-                            <td>${req.body.RESPCODE}</td>
-                        </tr>
-                        <tr>
-                            <td>Transaction ID</td>
-                            <td>${req.body.TXNID}</td>
-                        </tr>
-                        <tr>
-                            <td>Transaction AMOUNT</td>
-                            <td>${req.body.TXNAMOUNT}</td>
-                        </tr>
-                        <tr>
-                            <td>ORDER ID</td>
-                            <td>${req.body.ORDERID}</td>
-                        </tr>
-                        <tr>
-                            <td>STATUS</td>
-                            <td>${req.body.STATUS}</td>
-                        </tr>
-                        <tr>
-                            <td>BANK Transaction ID</td>
-                            <td>${req.body.BANKTXNID}</td>
-                        </tr>
-                        <tr>
-                            <td>Transaction TIME</td>
-                            <td>${req.body.TXNDATE}</td>
-                        </tr>
-                    </table> 
-                    <h4>Thanks!! for choosing us..</h4>
-                     `        
-              };
-              
-              transporter.sendMail(mailOptions, function(error, info){
-                if (error) {
-                  console.log(error);
-                } else {
-                  console.log('Email sent: ' + info.response);
-                }
-              });
-
-            res.render("all_exercise/payment",{details: req.body});
-        }
-    })
-    
-    req.flash("success", "Thank you! For the Premimum");
-    
-})
-
-
-///routes for city
-router.get("/aboutus",function(req,res){
-    res.render("campgrounds/aboutus");
-});
-router.get("/privacy",function(req,res){
-    res.render("campgrounds/privacypolicy");
-});
-router.get("/terms",function(req,res){
-    res.render("campgrounds/terms");
+router.get("/vision",function(req,res){
+    const images=dataset[3].images;
+    const data=dataset[3].data;
+    const heading=dataset[3].heading;
+    const subtopics=dataset[3].subtopics;
+    res.render("mySchool/myTemplate",{images:images,data:data,heading:heading,subtopics:subtopics});
 });
 
-router.get("/info",function(req,res){
-    res.redirect("/exercise");
-})
 
-router.get("/recommendation",function(req,res){
-    var list=["all_exercise/f&v","all_exercise/l&s","all_exercise/l&w","all_exercise/m&d","all_exercise/p&b"];
-    var i=Math.floor(Math.random() *5);
-    res.render(list[i]);
-})
-
-
-router.get("/finish/:hours/:minutes/:seconds/:actid",function(req,res){
-    activity.findById(req.params.actid,(err,myactid)=>{
-            if(err){
-                req.flash("error", err);
-                res.redirect("/");
-            }else{
-                var hsecs=req.params.hours*3600;
-                var msecs=req.params.minutes*60;
-                var secs=req.params.seconds+hsecs+msecs;
-                myactid.calburnt=myactid.calcount*secs;
-                myactid.duration=secs;
-                myactid.enddate=new Date();
-                myactid.save();
-                //////////////////////////////////////
-                var mailOptions = {
-                    from: 'ajindal_be18@thapar.edu',
-                    to: req.user.emails[0].value,
-                    subject: 'Yogi Lite details',
-                    html: `<h1>Hi!!! Workout Freak </h1>
-                    <h4 class="text-center">Your workout session details are:</h4>
-                        <table border="1PX" align="center">
-                            <tr>
-                                <td>Startdate</td>
-                                <td>${myactid.startdate}</td>
-                            </tr>
-                            <tr>
-                                <td>Enddate</td>
-                                <td>${myactid.enddate}</td>
-                            </tr>
-                            <tr>
-                                <td>Calburnt</td>
-                                <td>${myactid.calburnt}</td>
-                            </tr>
-                            <tr>
-                                <td>Duration</td>
-                                <td>${myactid.duration}</td>
-                            </tr>
-                            
-                        </table> 
-                        <h4>Thanks!! for choosing us..</h4>
-                         `        
-                  };
-                  
-                  transporter.sendMail(mailOptions, function(error, info){
-                    if (error) {
-                      console.log(error);
-                    } else {
-                      console.log('Email sent: ' + info.response);
-                    }
-                  });
-    
-                /////////////////////////////////////
-                activity.find({},function(err,all){
-                    var list=[];
-                    
-                    all.forEach(function(single){
-                        if(single.userki_id==req.user.id){
-                            list.push(single);
-                        }
-                    })
-                    res.render("all_exercise/finish",{allacts:list});  
-                })
-            }
-            
-    })
-})
-
-router.get("/exercise",function(req,res){
-    var count=0;
-    User.findOne({id:req.user.id},(err,currentuser)=>{
-        if(!currentuser){
-            const newuser= new User();
-            newuser.name= req.user.displayName;
-            newuser.email=req.user.emails[0].value;
-            newuser.id=req.user.id;
-            newuser.premium=false;
-            newuser.save();
-            currentuser=newuser;
-        }
-        exercise.find({},(err,allexercises)=>{
-            res.render("all_exercise/exercise",{allexercises:allexercises,user:req.user,pre:currentuser.premium});
-        })
-
-    });
-    
+router.get("/head_master",function(req,res){
+    const images=dataset[4].images;
+    const data=dataset[4].data;
+    const heading=dataset[4].heading;
+    const subtopics=dataset[4].subtopics;
+    res.render("mySchool/myTemplate",{images:images,data:data,heading:heading,subtopics:subtopics});
 });
 
-router.get("/embedded/:exid",(req,res)=>{
-    exercise.findById(req.params.exid,(err,mymodelid)=>{
-            if(err){
-                req.flash("error", err);
-                res.redirect("/");
-            }else{
-                var newactivity= new activity();
-                newactivity.startdate=new Date();
-                newactivity.id=newactivity._id;   
-                newactivity.userki_id=req.user.id; 
-                newactivity.calcount=mymodelid.calcount;  
-                newactivity.myexercise=mymodelid.name;
-                newactivity.save();
-                res.render("p5/index",{ model:mymodelid , current_activity:newactivity.id});
-            }
-            
-    })
-})
 
-// router.post("/info",function(req,res){
-
-//     doc.find({},function(err,all){
-//     var list=[];
-//         all.forEach(function(single){
-//             if(single.city==req.body.city && single.state==req.body.state){
-//                 list.push(single);
-//             }
-//         })
-//         if(list.length==0){
-//             res.render("campgrounds/nodoctor");
-//         } else {
-//         res.render("campgrounds/alldoctors",{doc_available:list});  
-//         }      
-//     })
-// })
+router.get("/view_management",function(req,res){
+    const images=dataset[5].images;
+    const data=dataset[5].data;
+    const heading=dataset[5].heading;
+    const subtopics=dataset[5].subtopics;
+    res.render("mySchool/myTemplate",{images:images,data:data,heading:heading,subtopics:subtopics});
+});
 
 
-// //routes for doctor
-// // router.get("/campgrounds/collab",middleware.isloggedin,function(req,res){
-// //     res.render("campgrounds/doctor");
-// // })
+router.get("/staff",function(req,res){
+    const images=dataset[6].images;
+    const data=dataset[6].data;
+    const heading=dataset[6].heading;
+    const subtopics=dataset[6].subtopics;
+    res.render("mySchool/myTemplate",{images:images,data:data,heading:heading,subtopics:subtopics});
+});
 
-// router.post("/campgrounds/collab", upload.array('myfiles',2),function(req,res){
-//     var obj=[];
-//         req.files.forEach(function(file){
-//         console.log(file.filename);            
-//         var xyz={ 
-//             data: fs.readFileSync(path.join('./uploads/' + file.filename)), 
-//         } ;
-//         obj.push(xyz);
-//       });
-//         doc.create(req.body.doctor,function(err,doc_created){
-//             doc_created.documents=obj;
-//             doc_created.save();
-//             console.log(doc_created);
-//             res.redirect("/info");
-//         })
-// })
-// //===================google map api
-// router.get("/api",function(req,res){
-//     res.render("campgrounds/api");
-// })
+////////////////////////////////////////////////admissions
+router.get("/admission_procedure",function(req,res){
+    res.render("mySchool/procedure");
+});
 
-// router.get("/api/:city/:state",function(req,res){
-//     doc.find({},function(err,all){
-//         var list=[];
-//             all.forEach(function(single){
-//                 if(single.city==req.params.city && single.state==req.params.state){
-//                     list.push(single);
-//                 }
-//             })
-//             if(list.length==0){
-//                 res.render("campgrounds/nodoctor");
-//             } else {
-//             res.render("campgrounds/alldoctors",{doc_available:list});  
-//             }      
-//         })
-// })
+// router.get("/register_online",function(req,res){
+//     res.redirect("/");
 
-// //campground routes
-// router.get("/campgrounds/final/:id",function(req,res){
-//     campground.find({},function(err,allcampgrounds){
-//         if(err){
-//             req.flash("error", err);
-//         } else{
-//             allcampgrounds.forEach(function(got){
-//                 if(got.btxn_id==""){
-//                     console.log(got.name);
-//                     campground.findByIdAndRemove(got._id,function(err){
-//                         if(err){
-//                             req.flash("error", err);
-//                         }
-//                         else{
-//                             console.log("item deleted");
-//                         }
-//                     })    
-//                 }
-//             })
-//             res.redirect("/campgrounds1/final/" +req.params.id);
-//         }
+//     const images=dataset[8].images;
+//     const data=dataset[8].data;
+//     const heading=dataset[8].heading;
+//     const subtopics=dataset[8].subtopics;
+//     res.render("mySchool/myTemplate",{images:images,data:data,heading:heading,subtopics:subtopics});
+// });
 
-//     })
-// })
+// router.get("/download_forms",function(req,res){
+//     res.redirect("/");
 
-// router.get("/campgrounds1/final/:id",function(req,res){
-//     campground.find({},function(err,allcampgrounds){
-//         if(err){
-//             req.flash("error", err);
-//             res.redirect("/info");
-//         } else{
-//             campground.findById(req.params.id,function(err,mycamp){
-//                 if(err){
-//                     console.log(err);
-//                     res.redirect("/info");
-//                 } else {
-//                     if(mycamp == null){
-//                         res.redirect("/info");
-//                     } else{
-//                         var list=[];
-//                         allcampgrounds.forEach(function(one){
-//                             if(one.doctor_id == mycamp.doctor_id){
-//                                 list.push(one);
-//                             }
-//                         })
+//     const images=dataset[9].images;
+//     const data=dataset[9].data;
+//     const heading=dataset[9].heading;
+//     const subtopics=dataset[9].subtopics;
+//     res.render("mySchool/myTemplate",{images:images,data:data,heading:heading,subtopics:subtopics});
+// });
+
+// router.get("/school_prospectus",function(req,res){
+//     res.redirect("/");
+
+//     const images=dataset[10].images;
+//     const data=dataset[10].data;
+//     const heading=dataset[10].heading;
+//     const subtopics=dataset[10].subtopics;
+//     res.render("mySchool/myTemplate",{images:images,data:data,heading:heading,subtopics:subtopics});
+// });
+
+router.get("/fees_structure",function(req,res){
+    res.render("mySchool/fees");
+});
+
+// router.get("/syllabus",function(req,res){
+//     res.redirect("/");
+
+//     const images=dataset[12].images;
+//     const data=dataset[12].data;
+//     const heading=dataset[12].heading;
+//     const subtopics=dataset[12].subtopics;
+//     res.render("mySchool/myTemplate",{images:images,data:data,heading:heading,subtopics:subtopics});
+// });
+
+// router.get("/foundation_wing_admissions",function(req,res){
+//     res.redirect("/");
+
+//     const images=dataset[13].images;
+//     const data=dataset[13].data;
+//     const heading=dataset[13].heading;
+//     const subtopics=dataset[13].subtopics;
+//     res.render("mySchool/myTemplate",{images:images,data:data,heading:heading,subtopics:subtopics});
+// });
+
+////////////////////////////////////////////////facilities
+
+router.get("/school_campus",function(req,res){
+    const images=dataset[14].images;
+    const data=dataset[14].data;
+    const heading=dataset[14].heading;
+    const subtopics=dataset[14].subtopics;
+    res.render("mySchool/myTemplate",{images:images,data:data,heading:heading,subtopics:subtopics});
+});
+
+router.get("/academics",function(req,res){
+    const images=dataset[15].images;
+    const data=dataset[15].data;
+    const heading=dataset[15].heading;
+    const subtopics=dataset[15].subtopics;
+    res.render("mySchool/myTemplate",{images:images,data:data,heading:heading,subtopics:subtopics});
+});
+
+router.get("/sports_games",function(req,res){
+    const images=dataset[16].images;
+    const data=dataset[16].data;
+    const heading=dataset[16].heading;
+    const subtopics=dataset[16].subtopics;
+    res.render("mySchool/myTemplate",{images:images,data:data,heading:heading,subtopics:subtopics});
+});
+
+router.get("/activities",function(req,res){
+    const images=dataset[17].images;
+    const data=dataset[17].data;
+    const heading=dataset[17].heading;
+    const subtopics=dataset[17].subtopics;
+    res.render("mySchool/myTemplate",{images:images,data:data,heading:heading,subtopics:subtopics});
+});
+
+router.get("/boarding",function(req,res){
+    const images=dataset[18].images;
+    const data=dataset[18].data;
+    const heading=dataset[18].heading;
+    const subtopics=dataset[18].subtopics;
+    res.render("mySchool/myTemplate",{images:images,data:data,heading:heading,subtopics:subtopics});
+});
+
+////////////////////////////////////////////////academics
+
+router.get("/roll_of_honours",function(req,res){
     
-//                         doc.findById(mycamp.doctor_id,function(err,doc){
-//                             if(err){
-//                                 console.log(err);
-//                             } else {
-//                         res.render("campgrounds/index",{campgrounds:list, currentuser: req.user, doc:doc});
-//                             }
-//                         })
-    
-//                     }
-
-//                 }
-//             })
-            
-//         }
-//     })
-// })
-// //==================viewing
-// router.get("/campgrounds/view/:id",function(req,res){
-//     campground.find({},function(err,allcampgrounds){
-//         if(err){
-//             console.log(err);
-//         } else {
-//             var list = [];
-//             allcampgrounds.forEach(function(single){
-//                 if(single.doctor_id==req.params.id && single.btxn_id!=""){
-//                     list.push(single);
-//                 }
-//             })
-//             doc.findById(req.params.id,function(err,doc){
-//                 if(err){
-//                     console.log(err);
-//                 } else {
-//             res.render("campgrounds/index",{campgrounds:list, currentuser: req.user, doc:doc});
-//                 }
-//             })
-//         }
-//     })
-// })
-
-// // ==================================================new route
-// router.get("/campgrounds/new/:id", middleware.isloggedin ,function(req,res){
-//             res.render("campgrounds/new",{docid:req.params.id});
-// })
+    res.render("mySchool/honours");
+});
 
 
-// router.post("/campgrounds/:id", middleware.isloggedin ,function(req,res){
-    
-//     var myauthor={
-//         id: req.user.id,
-//         username: req.user.displayName,
-//         image: req.user.photos[0].value,
-//         gmailid:req.user.emails[0].value
-//     };
+////////////////////////////////////////////////alumni
+
+// router.get("/alumni_platform",function(req,res){
+//     res.redirect("/");
+//     const images=dataset[20].images;
+//     const data=dataset[20].data;
+//     const heading=dataset[20].heading;
+//     const subtopics=dataset[20].subtopics;
+//     res.render("mySchool/myTemplate",{images:images,data:data,heading:heading,subtopics:subtopics});
+// });
+
+router.get("/about_ayosa",function(req,res){
+    const images=dataset[21].images;
+    const data=dataset[21].data;
+    const heading=dataset[21].heading;
+    const subtopics=dataset[21].subtopics;
+    res.render("mySchool/myTemplate",{images:images,data:data,heading:heading,subtopics:subtopics});
+});
+
+////////////////////////////////////////////////internationalism
+
+router.get("/internationalism",function(req,res){
+    const images=dataset[22].images;
+    const data=dataset[22].data;
+    const heading=dataset[22].heading;
+    const subtopics=dataset[22].subtopics;
+    res.render("mySchool/myTemplate",{images:images,data:data,heading:heading,subtopics:subtopics});
+});
 
 
-//     campground.create(req.body.campground , function(err,camp){
-//         if(err){
-//             req.flash("error", err);
-//         } else{
-//             camp.author=myauthor;
-//             // console.log(camp.author);
-//             camp.btxn_id="";
-//             camp.doctor_id=req.params.id;
-//             camp.save();
+////////////////////////////////////////////////covid_adaptation
 
-//             // console.log("finally camp is: ");
-//             // console.log(camp);
+router.get("/covid_adaptation",function(req,res){
+    const images=dataset[23].images;
+    const data=dataset[23].data;
+    const heading=dataset[23].heading;
+    const subtopics=dataset[23].subtopics;
+    res.render("mySchool/myTemplate",{images:images,data:data,heading:heading,subtopics:subtopics});
+});
 
-//             campground.find({},function(err,allcampgrounds){
-//                 if(err){
-//                     req.flash("error", err);
-//                 } else{
-//                     var list=[];
-//                     allcampgrounds.forEach(function(one){
-//                         if(one.doctor_id == camp.doctor_id){
-//                             list.push(one);
-//                         }
-//                     });
-//                     // console.log("finally list is : ");
-//                     // console.log(list);
-//                     res.render("campgrounds/slot",{camp: camp, allcamps: list});
-//                 }
-//             })
-//         }
-//     })
-// })
+////////////////////////////////////////////////blog
 
-// router.post("/campgrounds/:id/slot", middleware.isloggedin ,function(req,res){
-//     campground.findById(req.params.id, function(err, foundcampground){
-//         if(err){
-//             req.flash("error", err);
-//             res.redirect("/info");
-//         }
-//         else{
-//             foundcampground.slot=req.body.slot;
-//             foundcampground.save();
-//             console.log(foundcampground);
-//             if(req.user.emails[0].value.includes("@thapar.edu")){
-//                 // console.log(req.user.emails[0].value);
-//                 // console.log("thapar student");
-//                 foundcampground.txn_id = "Free for thapar students";
-//                 foundcampground.btxn_id = "thapar_discount";
-//                 foundcampground.save();
-//                 res.redirect("/campgrounds/" + foundcampground._id); 
-//             }
-//             else if(foundcampground.btxn_id == ""){
-//             res.redirect("/campgrounds/" + req.params.id +"/payment");
-//             } else {
-//                 res.redirect("/campgrounds/" + foundcampground._id);
-//             }
-//         }
-//     })
-    
-//     req.flash("success", "Your appointment request has been sent successfully. Thank you!");
-    
-// })
-
-// // ===========================================show
-
-// router.get("/campgrounds/:id",function(req,res){
-//     campground.findById(req.params.id).populate("comments").exec(function(err, foundcampground){
-//         if(err){
-//             req.flash("error", err);
-//         }
-//         else{
-//             doc.findById(foundcampground.doctor_id,function(err,doc){
-//                 if(err){
-//                     console.log(err);
-//                 } else {
-//                     // console.log(req.user.emails[0].value);
-//                     // console.log(doc.email);
-//                  res.render("campgrounds/show",{campground: foundcampground,doc: doc, usermail:req.user.emails[0].value} );
-//                 }
-//             })
-//         }
-//     })
-// })
-
-// // ==============================================edit
-// router.get("/campgrounds/:id/edit", middleware.checkcampownership ,function(req,res){
-//     campground.findById(req.params.id, function(err, foundcampground){
-//         if(err){
-//             req.flash("error", err);
-//             res.redirect("/campgrounds");
-//         }
-//         else{
-//             res.render("campgrounds/edit",{campground: foundcampground} );
-//         }
-//     })
-// })
-
-// router.put("/campgrounds/:id", middleware.checkcampownership ,function(req,res){
-//     campground.findByIdAndUpdate(req.params.id,req.body.campground ,function(err, updatedcampground){
-//         if(err){
-//             req.flash("error", err);
-//             res.redirect("/campgrounds");
-//         }
-//         else{
-//             updatedcampground.save();
-//             updatedcampground.slot="";
-//             campground.find({},function(err,allcampgrounds){
-//                 if(err){
-//                     req.flash("error", err);
-//                 } else{
-//             res.render("campgrounds/slot",{camp: updatedcampground, allcamps: allcampgrounds});
-//                 }
-//             })
-//         }
-//     })
-// })
+router.get("/blog",function(req,res){
+    res.redirect("/");
+    const images=dataset[24].images;
+    const data=dataset[24].data;
+    const heading=dataset[24].heading;
+    const subtopics=dataset[24].subtopics;
+    res.render("mySchool/myTemplate",{images:images,data:data,heading:heading,subtopics:subtopics});
+});
 
 
-// // ========================================delete
-// router.delete("/campgrounds/:id", middleware.checkcampownership ,function(req,res){
-//     campground.findByIdAndRemove(req.params.id ,function(err){
-//         if(err){
-//             req.flash("error", err);
-//             res.redirect("/info");
-//         }
-//         else{
-//             req.flash("success", "Appointment Successfully deleted");
-//             res.redirect("/info");
-//         }
-//     })
-// })
+////////////////////////////////////////////////contact
+
+router.get("/contact",function(req,res){
+    res.render("mySchool/contact");
+});
+
+
+///////////////////////////////////////////////landing page
+
+
+router.get("/media",function(req,res){
+    res.render("mySchool/media");
+});
+
+router.get("/sports_acheivement",function(req,res){
+    const images=dataset[26].images;
+    const data=dataset[26].data;
+    const heading=dataset[26].heading;
+    const subtopics=dataset[26].subtopics;
+    res.render("mySchool/myTemplate",{images:images,data:data,heading:heading,subtopics:subtopics});
+});
+
+router.get("/co_curricular_activities",function(req,res){
+    const images=dataset[27].images;
+    const data=dataset[27].data;
+    const heading=dataset[27].heading;
+    const subtopics=dataset[27].subtopics;
+    res.render("mySchool/myTemplate",{images:images,data:data,heading:heading,subtopics:subtopics});
+});
+
+router.get("/virtual_tour",function(req,res){
+    res.render("mySchool/virtualTour");
+});
+
+router.get("/yps_creative_book",function(req,res){
+    res.render("mySchool/ypsCreativeBook");
+});
+
+router.get("/yps_times",function(req,res){
+    const images=dataset[28].images;
+    const data=dataset[28].data;
+    const heading=dataset[28].heading;
+    const subtopics=dataset[28].subtopics;
+    res.render("mySchool/myTemplate",{images:images,data:data,heading:heading,subtopics:subtopics});
+});
+
+router.get("/school_year_back",function(req,res){
+    const images=dataset[29].images;
+    const data=dataset[29].data;
+    const heading=dataset[29].heading;
+    const subtopics=dataset[29].subtopics;
+    res.render("mySchool/myTemplate",{images:images,data:data,heading:heading,subtopics:subtopics});
+});
+
+///////////////////////////////////notice board
+router.get("/additions_BOQ",function(req,res){
+    const myHeading="Additions to BOQ";
+    const myPDF="pdf2";
+    res.render("mySchool/noticeTemplate",{heading:myHeading,pdf:myPDF});
+});
+router.get("/drawings",function(req,res){
+    const myHeading="Drawings";
+    const myPDF="pdf3";
+    res.render("mySchool/noticeTemplate",{heading:myHeading,pdf:myPDF});
+});
+router.get("/specifications",function(req,res){
+    const myHeading="Specifications & Approved Makes";
+    const myPDF="pdf5";
+    res.render("mySchool/noticeTemplate",{heading:myHeading,pdf:myPDF});
+});
+router.get("/swimmingPool",function(req,res){
+    const myHeading="BOQ FOR CONSTRUCTION OF SWIMMING POOL AT YPS PATIALA";
+    const myPDF="pdf4";
+    res.render("mySchool/noticeTemplate",{heading:myHeading,pdf:myPDF});
+});
+
+router.get("/read_more",function(req,res){
+    const images=dataset[30].images;
+    const data=dataset[30].data;
+    const heading=dataset[30].heading;
+    const subtopics=dataset[30].subtopics;
+    res.render("mySchool/myTemplate",{images:images,data:data,heading:heading,subtopics:subtopics});
+});
+
+
+
+
+
+
 
 module.exports = router;
